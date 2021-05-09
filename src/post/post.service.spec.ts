@@ -1,119 +1,322 @@
+import { REQUEST } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FilterQuery, Model } from 'mongoose';
+import { Comment } from '../database/comment.model';
+import { COMMENT_MODEL, POST_MODEL } from '../database/database.constants';
+import { Post } from '../database/post.model';
 import { PostService } from './post.service';
-
-import { first, take, toArray } from 'rxjs/operators';
 
 describe('PostService', () => {
   let service: PostService;
+  let model: Model<Post>;
+  let commentModel: Model<Comment>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PostService],
+      providers: [
+        PostService,
+        {
+          provide: POST_MODEL,
+          useValue: {
+            new: jest.fn(),
+            constructor: jest.fn(),
+            find: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            create: jest.fn(),
+            remove: jest.fn(),
+            exec: jest.fn(),
+            deleteMany: jest.fn(),
+            deleteOne: jest.fn(),
+            updateOne: jest.fn(),
+            findOneAndUpdate: jest.fn(),
+            findOneAndDelete: jest.fn(),
+          },
+        },
+        {
+          provide: COMMENT_MODEL,
+          useValue: {
+            new: jest.fn(),
+            constructor: jest.fn(),
+            find: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+            deleteOne: jest.fn(),
+            update: jest.fn(),
+            create: jest.fn(),
+            remove: jest.fn(),
+            exec: jest.fn(),
+          },
+        },
+        {
+          provide: REQUEST,
+          useValue: {
+            user: {
+              id: 'dummyId',
+            },
+          },
+        },
+      ],
     }).compile();
 
-    service = module.get<PostService>(PostService);
+    service = await module.resolve<PostService>(PostService);
+    model = module.get<Model<Post>>(POST_MODEL);
+    commentModel = module.get<Model<Comment>>(COMMENT_MODEL);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it('getAllPosts should return 3 posts', (done) => {
-    service
-      .findAll()
-      .pipe(take(3), toArray())
-      .subscribe({
-        next: (data) => expect(data.length).toBe(3),
-        error: (error) => console.log(error),
-        complete: done(),
-      });
-  });
-
-  it('getAllPosts with keyword should return 1 post', (done) => {
-    service
-      .findAll('Generate')
-      .pipe(take(3), toArray())
-      .subscribe({
-        next: (data) => expect(data.length).toBe(1),
-        error: (error) => console.log(error),
-        complete: done(),
-      });
-  });
-
-  it('getPostById with existing id should return 1 post', (done) => {
-    service.findById(1).subscribe({
-      next: (data) => {
-        expect(data.id).toBe(1);
-        expect(data.title).toEqual('Generate a NestJS project');
+  it('findAll should return all posts', async () => {
+    const posts = [
+      {
+        _id: '5ee49c3115a4e75254bb732e',
+        title: 'Generate a NestJS project',
+        content: 'content',
       },
-      error: (error) => console.log(error),
-      complete: done(),
+      {
+        _id: '5ee49c3115a4e75254bb732f',
+        title: 'Create CRUD RESTful APIs',
+        content: 'content',
+      },
+      {
+        _id: '5ee49c3115a4e75254bb7330',
+        title: 'Connect to MongoDB',
+        content: 'content',
+      },
+    ];
+    jest.spyOn(model, 'find').mockReturnValue({
+      skip: jest.fn().mockReturnValue({
+        limit: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValueOnce(posts) as any,
+        }),
+      }),
+    } as any);
+
+    const data = await service.findAll().toPromise();
+    expect(data.length).toBe(3);
+    expect(model.find).toHaveBeenCalled();
+
+    jest
+      .spyOn(model, 'find')
+      .mockImplementation(
+        (
+          conditions: FilterQuery<Post>,
+          callback?: (err: any, res: Post[]) => void,
+        ) => {
+          return {
+            skip: jest.fn().mockReturnValue({
+              limit: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValueOnce([posts[0]]),
+              }),
+            }),
+          } as any;
+        },
+      );
+
+    const result = await service.findAll('Generate', 0, 10).toPromise();
+    expect(result.length).toBe(1);
+    expect(model.find).lastCalledWith({
+      title: { $regex: '.*' + 'Generate' + '.*' },
     });
   });
 
-  it('getPostById with none existing id should return empty', (done) => {
-    service
-      .findById(10001)
-      .pipe(toArray())
-      .subscribe({
-        next: (data) => expect(data.length).toBe(0),
-        error: (error) => console.log(error),
-        complete: done(),
-      });
-  });
+  describe('findByid', () => {
+    it('if exists return one post', (done) => {
+      const found = {
+        _id: '5ee49c3115a4e75254bb732e',
+        title: 'Generate a NestJS project',
+        content: 'content',
+      };
 
-  it('save should increase the length of posts', (done) => {
-    service
-      .save({
-        id: 4,
-        title: 'test title',
-        content: 'test content',
-      })
-      .pipe(toArray())
-      .subscribe({
+      jest.spyOn(model, 'findOne').mockReturnValue({
+        exec: jest.fn().mockResolvedValueOnce(found) as any,
+      } as any);
+
+      service.findById('1').subscribe({
         next: (data) => {
-          expect(data.length).toBe(4);
-          expect(data[3].createdAt).toBeTruthy();
+          expect(data._id).toBe('5ee49c3115a4e75254bb732e');
+          expect(data.title).toEqual('Generate a NestJS project');
         },
         error: (error) => console.log(error),
         complete: done(),
       });
+    });
+
+    it('if not found throw an NotFoundException', (done) => {
+      jest.spyOn(model, 'findOne').mockReturnValue({
+        exec: jest.fn().mockResolvedValueOnce(null) as any,
+      } as any);
+
+      service.findById('1').subscribe({
+        next: (data) => {
+          console.log(data);
+        },
+        error: (error) => {
+          expect(error).toBeDefined();
+        },
+        complete: done(),
+      });
+    });
   });
 
-  it('update should change the content of post', (done) => {
-    service
-      .update(1, {
-        id: 1,
+  it('should save post', async () => {
+    const toCreated = {
+      title: 'test title',
+      content: 'test content',
+    };
+
+    const toReturned = {
+      _id: '5ee49c3115a4e75254bb732e',
+      ...toCreated,
+    } as Post;
+
+    jest.spyOn(model, 'create').mockImplementation(() => Promise.resolve(toReturned));
+
+    const data = await service.save(toCreated).toPromise();
+    expect(data._id).toBe('5ee49c3115a4e75254bb732e');
+    expect(model.create).toBeCalledWith({
+      ...toCreated,
+      createdBy: {
+        _id: 'dummyId',
+      },
+    });
+    expect(model.create).toBeCalledTimes(1);
+  });
+
+  describe('update', () => {
+    it('perform update if post exists', (done) => {
+      const toUpdated = {
+        _id: '5ee49c3115a4e75254bb732e',
         title: 'test title',
         content: 'test content',
-        createdAt: new Date(),
-      })
-      .pipe(take(4), toArray())
-      .subscribe({
+      };
+
+      jest.spyOn(model, 'findOneAndUpdate').mockReturnValue({
+        exec: jest.fn().mockResolvedValue(toUpdated) as any,
+      } as any);
+
+      service.update('5ee49c3115a4e75254bb732e', toUpdated).subscribe({
         next: (data) => {
-          expect(data.length).toBe(3);
-          expect(data[0].title).toBe('test title');
-          expect(data[0].content).toBe('test content');
-          expect(data[0].updatedAt).not.toBeNull();
+          expect(data).toBeTruthy();
+          expect(model.findOneAndUpdate).toBeCalled();
         },
         error: (error) => console.log(error),
         complete: done(),
       });
+    });
+
+    it('throw an NotFoundException if post not exists', (done) => {
+      const toUpdated = {
+        _id: '5ee49c3115a4e75254bb732e',
+        title: 'test title',
+        content: 'test content',
+      };
+      jest.spyOn(model, 'findOneAndUpdate').mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null) as any,
+      } as any);
+
+      service.update('5ee49c3115a4e75254bb732e', toUpdated).subscribe({
+        error: (error) => {
+          expect(error).toBeDefined();
+          expect(model.findOneAndUpdate).toHaveBeenCalledTimes(1);
+        },
+        complete: done(),
+      });
+    });
   });
 
-  it('deleteById with existing id should return true', (done) => {
-    service.deleteById(1).subscribe({
+  describe('delete', () => {
+    it('perform delete if post exists', (done) => {
+      const toDeleted = {
+        _id: '5ee49c3115a4e75254bb732e',
+        title: 'test title',
+        content: 'test content',
+      };
+      jest.spyOn(model, 'findOneAndDelete').mockReturnValue({
+        exec: jest.fn().mockResolvedValueOnce(toDeleted),
+      } as any);
+
+      service.deleteById('anystring').subscribe({
+        next: (data) => {
+          expect(data).toBeTruthy();
+          expect(model.findOneAndDelete).toBeCalled();
+        },
+        error: (error) => console.log(error),
+        complete: done(),
+      });
+    });
+
+    it('throw an NotFoundException if post not exists', (done) => {
+      jest.spyOn(model, 'findOneAndDelete').mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      } as any);
+      service.deleteById('anystring').subscribe({
+        error: (error) => {
+          expect(error).toBeDefined();
+          expect(model.findOneAndDelete).toBeCalledTimes(1);
+        },
+        complete: done(),
+      });
+    });
+  });
+
+  it('should delete all post', (done) => {
+    jest.spyOn(model, 'deleteMany').mockReturnValue({
+      exec: jest.fn().mockResolvedValueOnce({
+        deletedCount: 1,
+      }),
+    } as any);
+
+    service.deleteAll().subscribe({
       next: (data) => expect(data).toBeTruthy,
       error: (error) => console.log(error),
       complete: done(),
     });
   });
 
-  it('deleteById with none existing id should return false', (done) => {
-    service.deleteById(10001).subscribe({
-      next: (data) => expect(data).toBeFalsy,
-      error: (error) => console.log(error),
-      complete: done(),
+  it('should create comment ', async () => {
+    const comment = { content: 'test' };
+    jest.spyOn(commentModel, 'create').mockImplementation(() => Promise.resolve({
+      ...comment,
+      post: { _id: 'test' },
+    } as any));
+
+    const result = await service.createCommentFor('test', comment).toPromise();
+    expect(result.content).toEqual('test');
+    expect(commentModel.create).toBeCalledWith({
+      ...comment,
+      post: { _id: 'test' },
+      createdBy: { _id: 'dummyId' },
     });
+  });
+
+  it('should get comments of post ', async () => {
+    jest
+      .spyOn(commentModel, 'find')
+      .mockImplementation(
+        (
+          conditions: FilterQuery<Comment>,
+          callback?: (err: any, res: Comment[]) => void,
+        ) => {
+          return {
+            select: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([
+                {
+                  _id: 'test',
+                  content: 'content',
+                  post: { _id: '_test_id' },
+                },
+              ] as any),
+            }),
+          } as any;
+        },
+      );
+
+    const result = await service.commentsOf('test').toPromise();
+    expect(result.length).toBe(1);
+    expect(result[0].content).toEqual('content');
+    expect(commentModel.find).toBeCalledWith({ post: { _id: 'test' } });
   });
 });
