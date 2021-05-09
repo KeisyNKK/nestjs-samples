@@ -65,14 +65,11 @@ export class PostService {
   }
 
   deleteById(id: number): Observable<boolean> {
-    const idx: number = this.posts.findIndex(post => post.id === id);
+    const idx: number = this.posts.findIndex((post) => post.id === id);
     if (idx >= 0) {
-        this.posts = [
-            ...this.posts.slice(0, idx),
-            ...this.posts.slice(idx + 1),
-        ];
-        return of(true);
+      this.posts = [...this.posts.slice(0, idx), ...this.posts.slice(idx + 1)];
+      return of(true);
     }
     return of(false);
-}
+  }
 }

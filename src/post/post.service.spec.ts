@@ -100,4 +100,20 @@ describe('PostService', () => {
         complete: done(),
       });
   });
+
+  it('deleteById with existing id should return true', (done) => {
+    service.deleteById(1).subscribe({
+      next: (data) => expect(data).toBeTruthy,
+      error: (error) => console.log(error),
+      complete: done(),
+    });
+  });
+
+  it('deleteById with none existing id should return false', (done) => {
+    service.deleteById(10001).subscribe({
+      next: (data) => expect(data).toBeFalsy,
+      error: (error) => console.log(error),
+      complete: done(),
+    });
+  });
 });
