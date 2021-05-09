@@ -45,9 +45,34 @@ export class PostService {
     }
     return EMPTY;
   }
+
   save(data: Post): Observable<Post> {
     const post = { ...data, id: this.posts.length + 1, createdAt: new Date() };
     this.posts = [...this.posts, post];
     return from(this.posts);
+  }
+
+  update(id: number, data: Post): Observable<Post> {
+    this.posts = this.posts.map((post) => {
+      if (id === post.id) {
+        post.title = data.title;
+        post.content = data.content;
+        post.updatedAt = new Date();
+      }
+      return post;
+    });
+    return from(this.posts);
+  }
+
+  deleteById(id: number): Observable<boolean> {
+    const idx: number = this.posts.findIndex(post => post.id === id);
+    if (idx >= 0) {
+        this.posts = [
+            ...this.posts.slice(0, idx),
+            ...this.posts.slice(idx + 1),
+        ];
+        return of(true);
+    }
+    return of(false);
 }
 }
