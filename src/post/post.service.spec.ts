@@ -29,4 +29,14 @@ describe('PostService', () => {
       });
   });
 
-})
+  it('getAllPosts with keyword should return 1 post', done => {
+    service
+        .findAll('Generate')
+        .pipe(take(3), toArray())
+        .subscribe({
+        next: data => expect(data.length).toBe(1),
+        error: error => console.log(error),
+        complete: done(),
+    });
+});
+})  
