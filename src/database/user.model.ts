@@ -1,8 +1,7 @@
 import { compare, hash } from 'bcrypt';
 import { Connection, Document, Model, Schema, SchemaTypes } from 'mongoose';
-import { from, Observable, ObservableInput } from "rxjs";
+import { from, Observable } from "rxjs";
 import { RoleType } from '../shared/enum/role-type.enum';
-
 interface User extends Document {
   comparePassword(password: string): Observable<boolean>;
   readonly username: string;
@@ -54,7 +53,7 @@ async function preSaveHook(next) {
 UserSchema.pre<User>('save', preSaveHook);
 
 function comparePasswordMethod(password: string): Observable<boolean> {
-  return (password == this.password);
+  return from(compare(password, this.password));
 }
 
 UserSchema.methods.comparePassword = comparePasswordMethod;
