@@ -37,6 +37,34 @@ describe('PostService', () => {
         next: data => expect(data.length).toBe(1),
         error: error => console.log(error),
         complete: done(),
+      });
+  });
+
+  it('getPostById with existing id should return 1 post', done => {
+    service.findById(1).subscribe({
+        next: data => {
+            expect(data.id).toBe(1);
+            expect(data.title).toEqual('Generate a NestJS project');
+        },
+        error: error => console.log(error),
+        complete: done(),
+      });
+  });
+
+  it('getPostById with none existing id should return empty', done => {
+    let called = false;
+    service.findById(10001).subscribe({
+        next: data => {
+            console.log(data);
+            called = true;
+        },
+        error: error => {
+            console.log(error);
+            called = true;
+        },
+        complete: () => {
+            expect(called).toBeFalsy();
+            done();
+        },
     });
-});
 })  
