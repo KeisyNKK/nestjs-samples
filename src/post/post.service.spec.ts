@@ -52,19 +52,13 @@ describe('PostService', () => {
   });
 
   it('getPostById with none existing id should return empty', done => {
-    let called = false;
-    service.findById(10001).subscribe({
-        next: data => {
-            console.log(data);
-            called = true;
-        },
-        error: error => {
-            console.log(error);
-            called = true;
-        },
-        complete: () => {
-            expect(called).toBeFalsy();
-            done();
-        },
-    });
+    service
+        .findById(10001)
+        .pipe(toArray())
+        .subscribe({
+        next: data => expect(data.length).toBe(0),
+        error: error => console.log(error),
+        complete: done(),
+      });
+  });
 })  

@@ -30,17 +30,24 @@ export class PostService {
 
   findAll(keyword?: string): Observable<Post> {
     if (keyword) {
-      return from(this.posts.filter(post => post.title.indexOf(keyword) >= 0));
+      return from(
+        this.posts.filter((post) => post.title.indexOf(keyword) >= 0),
+      );
     }
 
     return from(this.posts);
   }
 
   findById(id: number): Observable<Post> {
-        const found = this.posts.find(post => post.id === id);
-        if (found) {
-        return of(found);
-        }
-        return EMPTY;
+    const found = this.posts.find((post) => post.id === id);
+    if (found) {
+      return of(found);
     }
-}    
+    return EMPTY;
+  }
+  save(data: Post): Observable<Post> {
+    const post = { ...data, id: this.posts.length + 1, createdAt: new Date() };
+    this.posts = [...this.posts, post];
+    return from(this.posts);
+}
+}
