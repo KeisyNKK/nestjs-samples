@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs/internal/Observable';
+import { EMPTY } from 'rxjs/internal/observable/empty';
 import { from } from 'rxjs/internal/observable/from';
+import { of } from 'rxjs/internal/observable/of';
 import { Post } from './post.interface';
 
 @Injectable()
@@ -33,4 +35,12 @@ export class PostService {
 
     return from(this.posts);
   }
+
+  findById(id: number): Observable<Post> {
+        const found = this.posts.find(post => post.id === id);
+        if (found) {
+        return of(found);
+        }
+        return EMPTY;
+    }
 }    
